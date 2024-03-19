@@ -1,0 +1,68 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\graphicspath{ {images} }
+\usepackage{hyperref}
+\usepackage{biblatex}
+\addbibresource{reference.bib}
+
+\title{ECG Heartbeat Classification}
+\author{Phan Thanh Bình BI12-059}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+The heart is the most important organ in the human body as it supplies and circulates blood, which every other organs needs to function. This vital role of the heart emphasizes the importance of monitoring its activity. One of the methods to assessing this activity by the use of Electrocardiogram (ECG), a non-invasive technique that records the heart's electrical signals. By analyzing these signals, healthcare professionals can gain valuable insights into the heart's health. However, manually analyzing ECG signals can be a labor-intensive and time-consuming task. With the advancements in technology, especially within the field of artificial intelligence, automating the analysis of ECG is totally feasible. In this work, we will:
+\begin{itemize}
+    \item Explore the \href{https://www.kaggle.com/datasets/shayanfazeli/heartbeat}{ECG Heartbeat Categorization Dataset}.
+    \item Build a deep learning model to perform the task required.
+\end{itemize}
+
+\section{Dataset}
+According the author, the dataset comprises two sets of heartbeat signals extracted from well-known databases for heartbeat classification: \href{https://www.physionet.org/content/mitdb/1.0.0/}{MIT-BIH Arrhythmia} and \href{https://www.physionet.org/content/ptbdb/1.0.0/}{PTB Diagnostic ECG}. We only consider the first one for our work which corresponds to $\frac{2}{4}$ downloaded files: \emph{mitbih\_train.csv} and \emph{mitbih\_test.csv}.
+
+There are $87554$ and $21892$ samples in the train and test set respectively ($109446$ total). Each sample has the last column as its category and the first $187$ columns as the signal sampling values. $5$ different categories are available.
+
+Figure \ref{fig:vis} shows an example of a signal from the dataset. A large number of \emph{zeros} are present at the end of the signal in order to make a consistent length with others.
+\begin{figure}[h]
+    \includegraphics[width=0.47\textwidth]{visualize.png}
+    \caption{Plot of an ECG signal using first 187 columns}
+    \label{fig:vis}
+\end{figure}
+
+Observing figure \ref{fig:catedist}, we clearly see that the category distribution is highly imbalance in both the train and test set which will require some additional steps in preparing phase and metrics in evaluating phase.
+\begin{figure}[h]
+    \includegraphics[width=0.47\textwidth]{cate-dist.png}
+    \caption{Category distribution}
+    \label{fig:catedist}
+\end{figure}
+
+\section{Method}
+\subsection{Preparation}
+One way for tackling imbalanced datasets is to oversample the minority class. The trivial approach would be to replicate instances from the each of those classes, however, this duplication fails to introduce fresh information to the model. Alternatively, new instances can be synthesized from the existing ones, a kind of data augmentation, commonly referred to as the \emph{Synthetic Minority Oversampling Technique (SMOTE)}\cite{Chawla2002}. However, the excessive use of \emph{SMOTE} can lead to undesirable outcomes since the generated data are based on hypothetical assumptions from existing data which can mislead the model. So from figure our detailed calculations for figure \ref{fig:catedist}: $72471, 2223, 5788, 641, 6431$ signals for each category $0-4$ respectively, we decide to \textbf{undersample} category $0$ to $7000$ signals first, then use \emph{SMOTE} to \textbf{oversample} other categories to $7000$ signals each. 
+
+\subsection{Model}
+Our model design is somewhat based on the architecture of VGG\cite{Simonyan2015}, detailed in figure \ref{fig:mycnn}. We employ the 1D convolution layers to extract the signal's features and maxpool layers to reduce the model complexity while still retain important features representations. Extracted features will then be flatten and passed through some fully connected layers. Finally, the output will be a vector of $5$ dimensions, represent the model's predicted score for the likelihood of each category. All hidden layers' sizes is chosen totally based on our preferences. The model is trained on $13$ epochs with \emph{cross entropy loss}, using \emph{Adam optimizer} with \emph{learning rate} $0.001$ and \emph{batch size} $64$.
+\begin{figure}[h]
+    \includegraphics[width=0.47\textwidth]{mycnn.png}
+    \caption{Model architecture}
+    \label{fig:mycnn}
+\end{figure}
+
+\section{Evaluation}
+\subsection{Metric}
+Since this is a classification task, the accuracy of the model should be taken into account, however based on the skewed distribution of categories shown in figure \ref{fig:catedist}, \emph{accuracy} metric in general does not reflect well the performance of the model. For that reason, we analyze the confusion matrix of the model's predictions and calculate the \emph{accuracy} for each category. A final number to show the model performance is the average of all the accuracies.
+
+\subsection{Result}
+Figure \ref{fig:confuse} show the confusion matrix. The model shows good accuracy towards categories 0, 2, 4 and decent towards others. Some explanations can be made about this result. Firstly, the model does not show absolute dominance in category 0, this can be the consequence of we undersample this category which limit the diversity of the data that the model can learn. Secondly, 2 classes 1, 3 get the relatively poor performance because they have least amount of \emph{real data points}.
+\begin{figure}[h]
+    \includegraphics[width=0.47\textwidth]{confuse.png}
+    \caption{Normalized confusion matrix of model's performance}
+    \label{fig:confuse}
+\end{figure}
+
+\section{Conclusion}
+In this work, we have explored a ECG Heartbeat dataset and build a simple deep learning model for classification task. The most difficult problem is handling the imbalance of the training and testing data which we have utilized both undersampling and oversampling techniques. The result shows the importance of having \emph{real} data because it shows declined accuracies with undersampled categories and excessive oversampled ones.
+
+\printbibliography
+\end{document}
