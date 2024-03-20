@@ -1,0 +1,79 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{graphicx}
+\graphicspath{ {images} }
+\usepackage{hyperref}
+\usepackage{biblatex}
+\addbibresource{reference.bib}
+\title{Fetal Head Circumference Measurement}
+\author{Phan Thanh Bình BI12-059}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+Ultra sound imaging refers to the technique of utilizing sound wave that has the frequency higher than the human hearing threshold to record medical image about the human internal body parts. This technique is frequently used because it provides a cheap, fast, quality solution without harm due to its no radiation nature. One of the applications of ultra sound image in the measurement of fetal head circumference(HC) during pregnancy. This measurement is crucial since it can be used to estimate gestational age and monitor growth of the fetus. With the advancements in technology, especially within the field of artificial intelligence, automating the HC measurement is totally feasible. In this work, we will:
+\begin{itemize}
+    \item Explore the \href{https://hc18.grand-challenge.org/}{HC18 Grand Challenge Dataset}
+    \item Build a deep learning model to perform the task required.
+\end{itemize}
+
+\section{Dataset}
+According to the author, the dataset is divided into a train set of 999 images and a test set of 335 images. The size of each image is 800x540 pixels with the pixel size ranging from 0.052 to 0.326 mm. The pixel size can be found in the \emph{*pixel\_size*.csv}. The images in train set also additionally has the manual annotation of the head circumference which was made by a trained sonographer and the ground truth HC measurement in millimeters. Each image's name starts with a number, however, although 999 images are present in the train set, the number of filenames only go to 805. This is due to the fact that some ultrasound images were made during the same echoscopic examination and have therefore a very similar appearance. Figure \ref{fig:head} shows the csv information file and figures \ref{fig:raw} and \ref{fig:anno} illustrate an example of ultrasound and annotated images from the train set.
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.5\textwidth]{head.png}
+    \caption{Train set csv file content}
+    \label{fig:head}
+
+    \includegraphics[width=0.5\textwidth]{raw.png}
+    \caption{Raw ultrasound image}
+    \label{fig:raw}
+    
+    \includegraphics[width=0.5\textwidth]{anno.png}
+    \caption{Annotated HC image}
+    \label{fig:anno}
+\end{figure*}
+
+\section{Method}
+\subsection{Pipeline}
+Our proposed pipeline is shown on figure \ref{fig:pipeline}. Given the raw image taken by ultrasound technology, we first perform an instance segmentation to get the location of the fetus head. Then we sequentially use \href{https://opencv.org/}{OpenCV libary} \emph{findCountours()} and \emph{arcLength()} functions to calculate the perimeter of the located head in pixel distance. Finally, we multiply the pixel distance with the annotated pixel size to get the HC measurement in millimeters.
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{pipeline.png}
+    \caption{Proposed pipeline}
+    \label{fig:pipeline}
+\end{figure*}
+
+\subsection{Segmentation}
+\subsubsection{Architecture}
+Our model architecture design is similar to U-Net\cite{Ronneberger2015}. We changes the input image size to 200x128 and only perform 3 times up/down sampling. The details can be viewed in figure \ref{fig:unet}. This architecture follows the \emph{encoder-decoder} scheme to obtain the segmentation map. The features extractor mechanisms is done by two convolutional layers combine with one maxpool layer similar to VGG \cite{Simonyan2015}. The concatenation of features used in upsampling phase before continue  performing convolution works as a method to avoid vanishing gradients problem.
+
+\subsubsection{Training}
+According to our pipeline \ref{fig:pipeline}, the target of the segmentation model is the area of the fetus head in the original image. Hence, we need to perform a filling step to create the target images from the annotated ones which only possess a single line to indicate the head circumference.
+
+We split the train set into a train subset and a validation set with the $9:1$ ratio. The model is trained on $50$ epochs with \emph{binary cross entropy loss}, using \emph{Adam optimizer} with \emph{learning rate} $0.0001$ and \emph{batch size} $16$.
+
+\begin{figure*}
+    \centering
+    \includegraphics[width=\textwidth]{unet.png}
+    \caption{Model architecture}
+    \label{fig:unet}
+\end{figure*}
+
+\section{Evaluation}
+In line with the pipeline \ref{fig:pipeline}, the task in this work should be regression, which means several regression metrics like \emph{RMSE, MAE, ...} should be employed. However, when examining the annotated images, we find that the multipication of OpenCv arcLength() and pixel size does not equal to the ground truth head's perimeter. The boxplot and histogram of the errors are shown in figure \ref{fig:error}.
+\begin{figure*}
+    \centering
+    \includegraphics[width=0.7\textwidth]{error.png}
+    \caption{Errors between proposed formula and ground truth perimeter value}
+    \label{fig:error}
+\end{figure*}
+
+So we turn this evaluation step into the evaluation of the segmentation model. The metric we use is the average of \emph{Intersection over Union (IOU)}. \emph{IOU} metric simply determines how well the model's prediction fit with the ground truth segmented map by calculating the intersection over union of area between the prediction and the ground truth. \[IOU=\frac{|A \cap B|}{|A \cup B|}=\frac{TP}{TP+FP+FN}\]. Our model achieve the score of \textbf{0.8212}
+
+\section{Conclusion}
+In this work, we have examine the dataset from \href{https://hc18.grand-challenge.org/}{HC18 Grand Challenge Dataset}. However, due to the inconsistency of our proposed formula with the ground truth annotations, we can only evaluate on the segmentation task in our pipeline
+
+\printbibliography
+\end{document}
